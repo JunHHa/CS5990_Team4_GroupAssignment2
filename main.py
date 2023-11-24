@@ -1,3 +1,5 @@
+import heapq
+from itertools import count
 from mpi4py import MPI
 import networkx as nx
 import pickle
@@ -48,10 +50,77 @@ def closeness_centrality(dist, graph):
 
     return centrality
 
+def betweenness_centrality(G, weight='weight'):
+    nodes = G.nodes()  # Get all the nodes in the graph G
+
+    # Initialize a dictionary to store betweenness centrality for each node
+    betweenness = {v: 0 for v in nodes}
+
+    # Iterate over each node in the graph as the source node
+    for s in nodes:
+        # sigma = Tracks the number of shortest paths from source 's' to each node
+        sigma = dict.fromkeys(nodes, 0)
+        sigma[s] = 1  # The number of paths from 's' to itself is always 1
+
+        # D = Tracks the shortest distance from 's' to each node
+        D = dict.fromkeys(nodes, float('inf'))  # Initialize with infinite distance
+        D[s] = 0  # Distance from 's' to itself is 0
+
+        # ancestors = Tracks the predecessors of each node in the path from 's'
+        ancestors = {v: [] for v in nodes}
+
+        # Prepare for Dijkstra's algorithm
+        seen = {s: 0}
+        c = count()
+        Q = []  # Priority queue for nodes to visit
+        heapq.heappush(Q, (0, next(c), s))  # Start with the source node 's'
+
+        # Execute Dijkstra's algorithm; couldn't get the standard nx.Dijkstra's algorithm to work to give me the correct values. Would give me values > 1
+        while Q:
+            # Get the node with the smallest distance
+            (dist, _, v) = heapq.heappop(Q)
+
+            # Skip if the current distance is not the shortest
+            if dist > D[v]:
+                continue
+
+            # Explore neighbors of the current node
+            for w, edgedata in G[v].items():
+                vw_dist = dist + edgedata.get(weight, 1)  # Calculate distance to neighbor
+                if vw_dist < D[w]:
+                    # Update shortest distance and path for neighbor
+                    D[w] = vw_dist
+                    heapq.heappush(Q, (vw_dist, next(c), w))
+                    sigma[w] = sigma[v]  # Update shortest path count
+                    ancestors[w] = [v]  # Set current node as predecessor
+                elif vw_dist == D[w]:  # If a new shortest path is found
+                    sigma[w] += sigma[v]  # Update the count of shortest paths
+                    ancestors[w].append(v)  # Add current node as another predecessor
+
+        # Accumulate betweenness values
+        delta = dict.fromkeys(nodes, 0)  # Tracks the dependency of each node
+        for v in sorted(D, key=D.get, reverse=True):
+            for w in ancestors[v]:
+                # Calculate dependency value
+                delta[w] += (sigma[w] / sigma[v]) * (1 + delta[v])
+            if v != s:
+                betweenness[v] += delta[v]  # Add dependency value to betweenness
+
+    # Normalize the betweenness values for undirected graphs
+    n = len(nodes)  # Number of nodes in the graph
+    if n > 1:
+        normal = 1 / ((n - 1) * (n - 2) / 1)  # Calculate normalization; for some reason I get double value if using standard 1 / ((n - 1) * (n - 2) / 2), so I have this
+        for v in betweenness:
+            betweenness[v] *= normal  # Apply normalization
+
+    return betweenness  # Return the calculated betweenness centrality values
+
 
 def process_data(graph, nodes, rank):
     dist = {}
     centrality = {}
+    betweenness = {}
+    networkx_betweenness ={}
     count = 0
     start_time = time.time()  # Record the start time
     # print(f"start time: ", start_time)
@@ -72,6 +141,12 @@ def process_data(graph, nodes, rank):
             centrality = closeness_centrality(dist, graph)
             file.write(f"Node {node}: Closeness Centrality = {centrality[node]:}\n")  # Write each node's centrality
             count += 1
+            
+            # betweenness = betweenness_centrality(graph)                                                       # create betweenness
+            # networkx_betweenness = nx.betweenness_centrality(graph)                                           # create networkx betweenness
+            # file.write(f"Node {node}: Betweenness Centrality = {betweenness[node]:}\n")                       # make file write for betweenness values
+            # file.write(f"Node {node}: NetworkX betweenness Centrality = {networkx_betweenness[node]:}\n")     # make file write for networkx betweenness values
+            # count += 1
 
             # Print elapsed time at specified interval
             # if time.time() - start_time > interval:
