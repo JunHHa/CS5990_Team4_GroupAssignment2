@@ -120,7 +120,8 @@ def process_data(graph, nodes, rank):
     dist = {}
     centrality = {}
     betweenness = {}
-    networkx_betweenness ={}
+    networkx_betweenness = {}
+    sum_cent = 0
     count = 0
     start_time = time.time()  # Record the start time
     # print(f"start time: ", start_time)
@@ -142,11 +143,15 @@ def process_data(graph, nodes, rank):
             file.write(f"Node {node}: Closeness Centrality = {centrality[node]:}\n")  # Write each node's centrality
             count += 1
             
+            sum_cent += centrality[node] # finding the sum of closeness for average
+            
             # betweenness = betweenness_centrality(graph)                                                       # create betweenness
             # networkx_betweenness = nx.betweenness_centrality(graph)                                           # create networkx betweenness
             # file.write(f"Node {node}: Betweenness Centrality = {betweenness[node]:}\n")                       # make file write for betweenness values
             # file.write(f"Node {node}: NetworkX betweenness Centrality = {networkx_betweenness[node]:}\n")     # make file write for networkx betweenness values
             # count += 1
+            
+            # sum_cent += betweenness[node]    # finding the sum of betweenness for average
 
             # Print elapsed time at specified interval
             # if time.time() - start_time > interval:
@@ -157,6 +162,9 @@ def process_data(graph, nodes, rank):
             #     print(f" Elapsed time: {hours:02}:{minutes:02}:{seconds:02}")
             #
             #     interval += 10  # Increase interval for the next print
+            
+        file.write(f"Average Closeness Centrality = {sum_cent/(len(nodes))}\n")      # file write the average of closeness
+        # file.write(f"Average Betweenness Centrality = {sum_cent/(len(nodes))}\n")  # file write the average of betweenness
 
     # Finish the loading bar
     progress_bar(1, complete=True)
@@ -168,6 +176,8 @@ def process_data(graph, nodes, rank):
     minutes = int((elapsed_time % 3600) // 60)
     seconds = int(elapsed_time % 60)
     print(f"Elapsed time: {hours:02}:{minutes:02}:{seconds:02}")
+
+    
     return centrality
 
 
@@ -206,10 +216,10 @@ def main():
     if rank == 0:
         # load data, make graph
         # filename = 'facebook_combined.txt'
-        # filename = 'twitter_combined.txt'
+        filename = 'twitter_combined.txt'
         # filename = 'twitter_combined_chunk.txt'
         
-        filename = 'facebook_combined_chunk.txt'
+        # filename = 'facebook_combined_chunk.txt'
         # node_names, edges = load_data(filename)
         # graph = make_graph(node_names, edges)
 
